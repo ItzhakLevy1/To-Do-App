@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>המשימות שלי - ניהול משימות ופרויקטים</title>
+    <!-- Font Awesome Icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <!-- Custom Stylesheet -->
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!-- Header Section -->
+    <header class="app-header">
+      <div class="header-container">
+        <div class="header-brand">
+          <div class="brand-icon">
+            <i class="fa-solid fa-list-check"></i>
+          </div>
+          <div class="brand-text">
+            <h1>המשימות שלי</h1>
+            <p>מוותאם אישית לנייד וללפטופ (PWA)</p>
+          </div>
+        </div>
+
+        <div class="header-actions">
+          <button
+            id="themeToggleBtn"
+            class="btn btn-outline"
+            title="החלף מצב כהה/בהיר"
+          >
+            <i class="fa-solid fa-moon"></i>
+            <span class="btn-text">מצב כהה</span>
+          </button>
+          <button id="backupBtn" class="btn btn-outline">
+            <i class="fa-solid fa-file-export"></i>
+            <span>גיבוי/שחזור</span>
+          </button>
+          <button id="installAppBtn" class="btn btn-primary-light">
+            <i class="fa-solid fa-download"></i>
+            <span>הוסף למסך הבית</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="main-container">
+      <!-- Stats Overview Widgets -->
+      <section class="stats-grid">
+        <div class="stat-card">
+          <span class="stat-label">סך הכל משימות</span>
+          <span class="stat-value" id="statTotal">0</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">הושלמו</span>
+          <span class="stat-value" id="statCompleted">0</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">בטיפול</span>
+          <span class="stat-value" id="statInProgress">0</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">דחופות</span>
+          <span class="stat-value highlight-urgent" id="statUrgent">0</span>
+        </div>
+      </section>
+
+      <!-- New Task Creation Form -->
+      <section class="card form-card">
+        <div class="form-header">
+          <i class="fa-solid fa-circle-plus"></i>
+          <h2>משימה חדשה</h2>
+        </div>
+        <form id="newTaskForm" onsubmit="handleAddTask(event)">
+          <div class="form-group full-width">
+            <input
+              type="text"
+              id="taskTitle"
+              placeholder="הוסף משימה..."
+              required
+            />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="taskProject">פרויקטים</label>
+              <select id="taskProject">
+                <!-- Populated dynamically via JS -->
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="taskPriority">עדיפות</label>
+              <select id="taskPriority">
+                <option value="high">עליונה</option>
+                <option value="medium" selected>רגילה</option>
+                <option value="low">נמוכה</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="taskDueDate">תאריך יעד</label>
+              <input type="date" id="taskDueDate" />
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-submit">
+            <i class="fa-solid fa-plus"></i> הוסף משימה
+          </button>
+        </form>
+      </section>
+
+      <!-- Navigation Tabs & Filtering Bar -->
+      <section class="controls-section">
+        <div class="projects-bar-container">
+          <div class="projects-tabs" id="projectTabs">
+            <!-- Project Tabs rendered dynamically -->
+          </div>
+          <button
+            class="btn btn-add-project"
+            onclick="openAddProjectModal()"
+            title="הוסף פרויקט חדש"
+          >
+            <i class="fa-solid fa-folder-plus"></i> פרויקט חדש
+          </button>
+        </div>
+
+        <!-- Active Project Actions Bar -->
+        <div class="active-project-actions">
+          <span class="active-project-title" id="activeProjectTitleDisplay"
+            >חילוץ והקראת טקסט</span
+          >
+          <div class="project-btn-group">
+            <button
+              class="btn btn-sm btn-outline-dark"
+              onclick="openEditProjectModal()"
+              title="ערוך שם פרויקט"
+            >
+              <i class="fa-solid fa-pen-to-square"></i> ערוך פרויקט
+            </button>
+            <button
+              class="btn btn-sm btn-danger-outline"
+              onclick="deleteCurrentProject()"
+              title="מחק פרויקט נוכחי"
+            >
+              <i class="fa-solid fa-trash-can"></i> מחק פרויקט
+            </button>
+          </div>
+        </div>
+
+        <div class="filter-search-bar">
+          <div class="status-filters" id="statusFilters">
+            <button class="filter-chip active" data-status="all">הכל</button>
+            <button class="filter-chip" data-status="todo">לביצוע</button>
+            <button class="filter-chip" data-status="in-progress">
+              בטיפול
+            </button>
+            <button class="filter-chip" data-status="completed">הושלמו</button>
+          </div>
+
+          <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+            <input
+              type="text"
+              id="searchInput"
+              placeholder="חיפוש משימות..."
+              oninput="handleSearch()"
+            />
+          </div>
+        </div>
+      </section>
+
+      <!-- Tasks List Display Area -->
+      <section class="tasks-container" id="tasksContainer">
+        <!-- Tasks rendered dynamically -->
+      </section>
+    </main>
+
+    <!-- Modal: Add New Project -->
+    <div class="modal-overlay" id="addProjectModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>הוספת פרויקט חדש</h3>
+          <button class="close-btn" onclick="closeModal('addProjectModal')">
+            &times;
+          </button>
+        </div>
+        <div class="modal-body">
+          <form onsubmit="handleCreateProject(event)">
+            <div class="form-group full-width">
+              <label for="newProjectName">שם הפרויקט</label>
+              <input
+                type="text"
+                id="newProjectName"
+                placeholder="הכנס שם פרויקט..."
+                required
+              />
+            </div>
+            <div class="modal-actions">
+              <button type="submit" class="btn btn-submit">צור פרויקט</button>
+              <button
+                type="button"
+                class="btn btn-outline-dark"
+                onclick="closeModal('addProjectModal')"
+              >
+                ביטול
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Edit Project Name -->
+    <div class="modal-overlay" id="editProjectModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>עריכת שם פרויקט</h3>
+          <button class="close-btn" onclick="closeModal('editProjectModal')">
+            &times;
+          </button>
+        </div>
+        <div class="modal-body">
+          <form onsubmit="handleSaveEditedProject(event)">
+            <div class="form-group full-width">
+              <label for="editProjectNameInput">שם פרויקט חדש</label>
+              <input type="text" id="editProjectNameInput" required />
+            </div>
+            <div class="modal-actions">
+              <button type="submit" class="btn btn-submit">שמור שינויים</button>
+              <button
+                type="button"
+                class="btn btn-outline-dark"
+                onclick="closeModal('editProjectModal')"
+              >
+                ביטול
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Backup & Restore -->
+    <div class="modal-overlay" id="backupModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>גיבוי ושחזור נתונים</h3>
+          <button class="close-btn" onclick="closeModal('backupModal')">
+            &times;
+          </button>
+        </div>
+        <div class="modal-body">
+          <p>
+            תוכל לייצא את המשימות של קובץ JSON או לשחזר משימות מקובץ נתונים
+            קודם.
+          </p>
+          <div class="backup-actions">
+            <button class="btn btn-primary-light" onclick="exportData()">
+              <i class="fa-solid fa-download"></i> לייצא גיבוי (JSON)
+            </button>
+            <hr />
+            <label class="btn btn-outline-dark file-label">
+              <i class="fa-solid fa-upload"></i> לייבא משימות בקובץ
+              <input
+                type="file"
+                id="importFileInput"
+                accept=".json"
+                onchange="importData(event)"
+                hidden
+              />
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Edit Task -->
+    <div class="modal-overlay" id="editTaskModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>עריכת משימה</h3>
+          <button class="close-btn" onclick="closeModal('editTaskModal')">
+            &times;
+          </button>
+        </div>
+        <div class="modal-body">
+          <form id="editTaskForm" onsubmit="saveEditedTask(event)">
+            <input type="hidden" id="editTaskId" />
+
+            <div class="form-group full-width">
+              <label for="editTaskTitle">תיאור המשימה</label>
+              <input type="text" id="editTaskTitle" required />
+            </div>
+
+            <div class="form-group full-width">
+              <label for="editTaskProject">פרויקט</label>
+              <select id="editTaskProject">
+                <!-- Populated dynamically -->
+              </select>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="editTaskPriority">עדיפות</label>
+                <select id="editTaskPriority">
+                  <option value="high">עליונה</option>
+                  <option value="medium">רגילה</option>
+                  <option value="low">נמוכה</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="editTaskDueDate">תאריך יעד</label>
+                <input type="date" id="editTaskDueDate" />
+              </div>
+            </div>
+
+            <div class="modal-actions">
+              <button type="submit" class="btn btn-submit">שמור שינויים</button>
+              <button
+                type="button"
+                class="btn btn-outline-dark"
+                onclick="closeModal('editTaskModal')"
+              >
+                ביטול
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- External JavaScript File -->
+    <script src="script.js"></script>
+  </body>
+</html>
