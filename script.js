@@ -1,32 +1,43 @@
 /**
  * Main Tasks & Projects Management Logic
+ * with Firebase Firestore
  */
 
-// Application State Initializer
-let projects = JSON.parse(localStorage.getItem("tasks_app_projects")) || [
-  "חילוץ והקראת טקסט",
-  "פרויקט 2",
-  "פרויקט 3",
-];
+// Import Firebase Modular SDK via CDN
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import {
+  getFirestore,
+  collection,
+  getDocs,
+  setDoc,
+  doc,
+  deleteDoc,
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-let tasks = JSON.parse(localStorage.getItem("tasks_app_data")) || [
-  {
-    id: "1",
-    title:
-      "לוודא בכמה שפות יש תמיכה בהקשר של חילוץ והקראת טקסט ולבדוק כל אחת מהאופציות עם טקסט והקראתו בכל אחת מהשפות",
-    project: "חילוץ והקראת טקסט",
-    priority: "medium",
-    status: "todo",
-    createdAt: "2026-09-24",
-    dueDate: "2026-09-24",
-  },
-];
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyBVq7w5Tk64dHmQkNzq97Mw87gQ0F0LOSU",
+  authDomain: "to-do-app-3b7ff.firebaseapp.com",
+  projectId: "to-do-app-3b7ff",
+  storageBucket: "to-do-app-3b7ff.firebasestorage.app",
+  messagingSenderId: "733628658918",
+  appId: "1:733628658918:web:02cb97a1176113c1cb3727",
+  measurementId: "G-G2CDH735EJ",
+};
 
-let activeProject = projects[0] || "פרויקט כללי";
+// Initialize Firebase & Firestore
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// Application State
+let projects = [];
+let tasks = [];
+let activeProject = "";
 let activeStatusFilter = "all";
 let searchQuery = "";
 
-// DOM Elements Reference Variables
+// DOM Elements
 const tasksContainer = document.getElementById("tasksContainer");
 const themeToggleBtn = document.getElementById("themeToggleBtn");
 const backupBtn = document.getElementById("backupBtn");
@@ -34,24 +45,85 @@ const installAppBtn = document.getElementById("installAppBtn");
 const searchInput = document.getElementById("searchInput");
 const clearSearchBtn = document.getElementById("clearSearchBtn");
 
-// Primary Application Load Handler
-document.addEventListener("DOMContentLoaded", () => {
+/* ==========================================================================
+   Initialize
+   ========================================================================== */
+document.addEventListener("DOMContentLoaded", async () => {
   initTheme();
   setupEventListeners();
-  renderProjectsUI();
-  renderTasks();
-  updateStats();
+  await fetchAllDataFromFirestore();
 });
 
-/* Event Listeners Initialization */
-function setupEventListeners() {
-  // Project Tab Buttons Switcher
-  document.getElementById("projectTabs").addEventListener("click", (e) => {
-    if (e.target.classList.contains("tab-btn")) {
-      switchProject(e.target.dataset.project);
-    }
-  });
+/* ==========================================================================
+   Firestore Operations
+   ========================================================================== */
+async function fetchAllDataFromFirestore() {
+  try {
+    // Load Projects
+    const projectsSnapshot = await getDocs(collection(db, "projects"));
+    projects = projectsSnapshot.docs.map((d) => d.data().name);
 
+    if (projects.length === 0) {
+      const defaultProject = "פרויקט כללי";
+      projects = [defaultProject];
+      await setDoc(doc(db, "projects", defaultProject), {
+        name: defaultProject,
+      });
+    }
+
+    activeProject = projects[0];
+
+    // Load Tasks
+    const tasksSnapshot = await getDocs(collection(db, "tasks"));
+    tasks = tasksSnapshot.docs.map((d) => d.data());
+
+    renderProjectsUI();
+    renderTasks();
+    updateStats();
+  } catch (error) {
+    console.error("Error fetching data from Firestore:", error);
+    alert(
+      "שגיאה בטעינת הנתונים מ-Firebase. בדוק את הקונפיגורציה ואת חוקי האבטחה.",
+    );
+  }
+}
+
+async function saveTaskToFirestore(task) {
+  try {
+    await setDoc(doc(db, "tasks", String(task.id)), task);
+  } catch (error) {
+    console.error("Error saving task to Firestore:", error);
+  }
+}
+
+async function deleteTaskFromFirestore(taskId) {
+  try {
+    await deleteDoc(doc(db, "tasks", String(taskId)));
+  } catch (error) {
+    console.error("Error deleting task from Firestore:", error);
+  }
+}
+
+async function saveProjectToFirestore(projectName) {
+  try {
+    await setDoc(doc(db, "projects", projectName), { name: projectName });
+  } catch (error) {
+    console.error("Error saving project to Firestore:", error);
+  }
+}
+
+async function deleteProjectFromFirestore(projectName) {
+  try {
+    await deleteDoc(doc(db, "projects", projectName));
+  } catch (error) {
+    console.error("Error deleting project from Firestore:", error);
+  }
+}
+
+/* ==========================================================================
+   Event Listeners
+   ========================================================================== */
+function setupEventListeners() {
   // Status Filters
   document.getElementById("statusFilters").addEventListener("click", (e) => {
     if (e.target.classList.contains("filter-chip")) {
@@ -70,7 +142,7 @@ function setupEventListeners() {
   // Backup Dialog Opener
   backupBtn.addEventListener("click", () => openModal("backupModal"));
 
-  // PWA Install Event Handler
+  // PWA Install
   let deferredPrompt;
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
@@ -94,54 +166,43 @@ function setupEventListeners() {
   });
 }
 
-/* Dynamic Projects Rendering Logic */
+/* ==========================================================================
+   Projects UI
+   ========================================================================== */
 function renderProjectsUI() {
-  const projectTabsContainer = document.getElementById("projectTabs");
+  const activeProjectSelect = document.getElementById("activeProjectSelect");
   const taskProjectSelect = document.getElementById("taskProject");
   const editTaskProjectSelect = document.getElementById("editTaskProject");
 
-  // 1. Render Project Tabs
-  projectTabsContainer.innerHTML = projects
-    .map(
-      (proj) => `
-        <button class="tab-btn ${proj === activeProject ? "active" : ""}" data-project="${escapeHtml(proj)}">
-            ${escapeHtml(proj)}
-        </button>
-    `,
-    )
-    .join("");
-
-  // 2. Render Project Select Dropdowns (Form Selects)
   const projectOptionsHtml = projects
     .map(
       (proj) => `
-        <option value="${escapeHtml(proj)}">${escapeHtml(proj)}</option>
+        <option value="${escapeHtml(proj)}" ${proj === activeProject ? "selected" : ""}>${escapeHtml(proj)}</option>
     `,
     )
     .join("");
 
+  activeProjectSelect.innerHTML = projectOptionsHtml;
   taskProjectSelect.innerHTML = projectOptionsHtml;
   editTaskProjectSelect.innerHTML = projectOptionsHtml;
 
-  // 3. Sync Header Text displaying the active project
   document.getElementById("activeProjectTitleDisplay").innerText =
     activeProject;
 }
 
-/* Switch Active Project View */
 function switchProject(projectName) {
   activeProject = projectName;
   renderProjectsUI();
   renderTasks();
 }
 
-/* Project Creation Logic */
+/* Project Creation */
 function openAddProjectModal() {
   document.getElementById("newProjectName").value = "";
   openModal("addProjectModal");
 }
 
-function handleCreateProject(e) {
+async function handleCreateProject(e) {
   e.preventDefault();
   const newName = document.getElementById("newProjectName").value.trim();
 
@@ -153,19 +214,19 @@ function handleCreateProject(e) {
   }
 
   projects.push(newName);
-  saveProjectsToLocalStorage();
+  await saveProjectToFirestore(newName);
 
   closeModal("addProjectModal");
   switchProject(newName);
 }
 
-/* Project Name Edit Logic */
+/* Project Rename */
 function openEditProjectModal() {
   document.getElementById("editProjectNameInput").value = activeProject;
   openModal("editProjectModal");
 }
 
-function handleSaveEditedProject(e) {
+async function handleSaveEditedProject(e) {
   e.preventDefault();
   const newName = document.getElementById("editProjectNameInput").value.trim();
 
@@ -180,55 +241,65 @@ function handleSaveEditedProject(e) {
     return;
   }
 
-  // Update Project name in array
-  const index = projects.indexOf(activeProject);
+  const oldName = activeProject;
+
+  // Update in local array
+  const index = projects.indexOf(oldName);
   if (index !== -1) {
     projects[index] = newName;
   }
 
-  // Cascade Update: Update project reference in all associated tasks
-  tasks.forEach((task) => {
-    if (task.project === activeProject) {
-      task.project = newName;
-    }
-  });
+  // Update all tasks that belong to this project
+  const tasksToUpdate = tasks.filter((t) => t.project === oldName);
+  for (const task of tasksToUpdate) {
+    task.project = newName;
+    await saveTaskToFirestore(task);
+  }
 
-  saveProjectsToLocalStorage();
-  saveDataToLocalStorage();
+  // Save new project doc, delete old one
+  await saveProjectToFirestore(newName);
+  await deleteProjectFromFirestore(oldName);
 
   closeModal("editProjectModal");
   switchProject(newName);
 }
 
-/* Project Deletion Logic */
-function deleteCurrentProject() {
+/* Project Deletion */
+async function deleteCurrentProject() {
   if (projects.length <= 1) {
     alert("יש להשאיר לפחות פרויקט אחד קיים במערכת.");
     return;
   }
 
   if (
-    confirm(
+    !confirm(
       `האם למחוק את הפרויקט "${activeProject}"? כל המשימות השייכות לפרויקט זה יימחקו.`,
     )
   ) {
-    // Remove associated tasks
-    tasks = tasks.filter((task) => task.project !== activeProject);
-
-    // Remove project from list
-    projects = projects.filter((proj) => proj !== activeProject);
-
-    saveProjectsToLocalStorage();
-    saveDataToLocalStorage();
-
-    // Switch active view to first remaining project
-    switchProject(projects[0]);
-    updateStats();
+    return;
   }
+
+  const projectToDelete = activeProject;
+
+  // Delete associated tasks from Firestore
+  const tasksToDelete = tasks.filter((t) => t.project === projectToDelete);
+  for (const task of tasksToDelete) {
+    await deleteTaskFromFirestore(task.id);
+  }
+  tasks = tasks.filter((t) => t.project !== projectToDelete);
+
+  // Delete project from Firestore
+  await deleteProjectFromFirestore(projectToDelete);
+  projects = projects.filter((p) => p !== projectToDelete);
+
+  switchProject(projects[0]);
+  updateStats();
 }
 
-/* Task Addition Functionality */
-function handleAddTask(e) {
+/* ==========================================================================
+   Tasks
+   ========================================================================== */
+async function handleAddTask(e) {
   e.preventDefault();
   const titleInput = document.getElementById("taskTitle");
   const projectInput = document.getElementById("taskProject");
@@ -246,36 +317,30 @@ function handleAddTask(e) {
   };
 
   tasks.unshift(newTask);
-  saveDataToLocalStorage();
+  await saveTaskToFirestore(newTask);
 
-  // Reset input fields
   titleInput.value = "";
   dueDateInput.value = "";
 
-  // Switch view to created task's project
   switchProject(newTask.project);
   updateStats();
 }
 
-/* Main Render Engine Functions */
 function renderTasks() {
   let filteredTasks = tasks.filter((task) => task.project === activeProject);
 
-  // Filter by status chip
   if (activeStatusFilter !== "all") {
     filteredTasks = filteredTasks.filter(
       (task) => task.status === activeStatusFilter,
     );
   }
 
-  // Filter by Search Query
   if (searchQuery) {
     filteredTasks = filteredTasks.filter((task) =>
       task.title.toLowerCase().includes(searchQuery.toLowerCase()),
     );
   }
 
-  // Sort by priority logic (High > Medium > Low)
   const priorityMap = { high: 1, medium: 2, low: 3 };
   filteredTasks.sort(
     (a, b) => priorityMap[a.priority] - priorityMap[b.priority],
@@ -301,9 +366,17 @@ function renderTasks() {
 
     taskCard.innerHTML = `
             <div class="task-main-content">
-                <div class="task-header-info">
+                <span class="task-title-text ${task.status === "completed" ? "completed-text" : ""}">${escapeHtml(task.title)}</span>
+                <div class="task-priority-actions">
                     <span class="priority-badge priority-${task.priority}">${priorityLabels[task.priority]}</span>
-                    <span class="task-title-text ${task.status === "completed" ? "completed-text" : ""}">${escapeHtml(task.title)}</span>
+                    <div class="task-icon-actions">
+                        <button class="icon-action-btn" onclick="openEditTaskModal('${task.id}')" title="ערוך משימה">
+                            <i class="fa-solid fa-pen"></i>
+                        </button>
+                        <button class="icon-action-btn delete-btn" onclick="deleteTask('${task.id}')" title="מחק משימה">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="task-meta">
                     <span><i class="fa-regular fa-calendar-plus"></i> נוצר: ${task.createdAt}</span>
@@ -320,12 +393,6 @@ function renderTasks() {
                     <button class="status-btn ${task.status === "completed" ? "selected" : ""}" 
                         onclick="updateTaskStatus('${task.id}', 'completed')">הושלם</button>
                 </div>
-                <button class="icon-action-btn" onclick="openEditTaskModal('${task.id}')" title="ערוך משימה">
-                    <i class="fa-solid fa-pen"></i>
-                </button>
-                <button class="icon-action-btn delete-btn" onclick="deleteTask('${task.id}')" title="מחק משימה">
-                    <i class="fa-solid fa-trash-can"></i>
-                </button>
             </div>
         `;
 
@@ -333,28 +400,25 @@ function renderTasks() {
   });
 }
 
-/* Real-time Status Updaters */
-function updateTaskStatus(taskId, newStatus) {
+async function updateTaskStatus(taskId, newStatus) {
   const task = tasks.find((t) => t.id === taskId);
   if (task) {
     task.status = newStatus;
-    saveDataToLocalStorage();
+    await saveTaskToFirestore(task);
     renderTasks();
     updateStats();
   }
 }
 
-/* Task Deletion Handler */
-function deleteTask(taskId) {
-  if (confirm("האם אתה בטוח שברצונך למחוק משימה זו?")) {
-    tasks = tasks.filter((t) => t.id !== taskId);
-    saveDataToLocalStorage();
-    renderTasks();
-    updateStats();
-  }
+async function deleteTask(taskId) {
+  if (!confirm("האם אתה בטוח שברצונך למחוק משימה זו?")) return;
+
+  tasks = tasks.filter((t) => t.id !== taskId);
+  await deleteTaskFromFirestore(taskId);
+  renderTasks();
+  updateStats();
 }
 
-/* Task Editing Modals logic */
 function openEditTaskModal(taskId) {
   const task = tasks.find((t) => t.id === taskId);
   if (!task) return;
@@ -368,7 +432,7 @@ function openEditTaskModal(taskId) {
   openModal("editTaskModal");
 }
 
-function saveEditedTask(e) {
+async function saveEditedTask(e) {
   e.preventDefault();
   const id = document.getElementById("editTaskId").value;
   const task = tasks.find((t) => t.id === id);
@@ -379,15 +443,16 @@ function saveEditedTask(e) {
     task.priority = document.getElementById("editTaskPriority").value;
     task.dueDate = document.getElementById("editTaskDueDate").value || null;
 
-    saveDataToLocalStorage();
+    await saveTaskToFirestore(task);
     closeModal("editTaskModal");
-
     switchProject(task.project);
     updateStats();
   }
 }
 
-/* Search Input Controls */
+/* ==========================================================================
+   Search & Stats
+   ========================================================================== */
 function handleSearch() {
   searchQuery = searchInput.value;
   clearSearchBtn.style.display = searchQuery.length > 0 ? "block" : "none";
@@ -402,7 +467,6 @@ function clearSearch() {
   renderTasks();
 }
 
-/* Statistics Dynamic Aggregator */
 function updateStats() {
   document.getElementById("statTotal").innerText = tasks.length;
   document.getElementById("statCompleted").innerText = tasks.filter(
@@ -416,7 +480,9 @@ function updateStats() {
   ).length;
 }
 
-/* Theme Switching Functions */
+/* ==========================================================================
+   Theme
+   ========================================================================== */
 function toggleTheme() {
   const currentTheme = document.documentElement.getAttribute("data-theme");
   const newTheme = currentTheme === "dark" ? "light" : "dark";
@@ -439,7 +505,9 @@ function initTheme() {
     savedTheme === "dark" ? "fa-solid fa-sun" : "fa-solid fa-moon";
 }
 
-/* Local Data Backup Export & JSON Import */
+/* ==========================================================================
+   Backup / Restore (JSON export-import, then sync to Firestore)
+   ========================================================================== */
 function exportData() {
   const backupData = {
     projects: projects,
@@ -459,9 +527,9 @@ function exportData() {
   downloadAnchor.remove();
 }
 
-function importData(event) {
+async function importData(event) {
   const fileReader = new FileReader();
-  fileReader.onload = function (e) {
+  fileReader.onload = async function (e) {
     try {
       const importedData = JSON.parse(e.target.result);
       if (importedData.tasks && importedData.projects) {
@@ -470,8 +538,15 @@ function importData(event) {
       } else if (Array.isArray(importedData)) {
         tasks = importedData;
       }
-      saveProjectsToLocalStorage();
-      saveDataToLocalStorage();
+
+      // Sync everything to Firestore
+      for (const proj of projects) {
+        await saveProjectToFirestore(proj);
+      }
+      for (const task of tasks) {
+        await saveTaskToFirestore(task);
+      }
+
       switchProject(projects[0] || "פרויקט כללי");
       updateStats();
       closeModal("backupModal");
@@ -485,7 +560,9 @@ function importData(event) {
   }
 }
 
-/* Modal Helpers */
+/* ==========================================================================
+   Modal Helpers
+   ========================================================================== */
 function openModal(modalId) {
   document.getElementById(modalId).classList.add("active");
 }
@@ -494,16 +571,9 @@ function closeModal(modalId) {
   document.getElementById(modalId).classList.remove("active");
 }
 
-/* Local Storage Interface Utility */
-function saveDataToLocalStorage() {
-  localStorage.setItem("tasks_app_data", JSON.stringify(tasks));
-}
-
-function saveProjectsToLocalStorage() {
-  localStorage.setItem("tasks_app_projects", JSON.stringify(projects));
-}
-
-/* Security String Escaper */
+/* ==========================================================================
+   Security
+   ========================================================================== */
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, function (m) {
     return {
@@ -515,3 +585,22 @@ function escapeHtml(str) {
     }[m];
   });
 }
+
+// Expose functions used by inline onclick handlers (needed because of type="module")
+window.switchProject = switchProject;
+window.openAddProjectModal = openAddProjectModal;
+window.handleCreateProject = handleCreateProject;
+window.openEditProjectModal = openEditProjectModal;
+window.handleSaveEditedProject = handleSaveEditedProject;
+window.deleteCurrentProject = deleteCurrentProject;
+window.handleAddTask = handleAddTask;
+window.updateTaskStatus = updateTaskStatus;
+window.deleteTask = deleteTask;
+window.openEditTaskModal = openEditTaskModal;
+window.saveEditedTask = saveEditedTask;
+window.handleSearch = handleSearch;
+window.clearSearch = clearSearch;
+window.openModal = openModal;
+window.closeModal = closeModal;
+window.exportData = exportData;
+window.importData = importData;

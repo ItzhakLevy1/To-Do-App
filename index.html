@@ -77,6 +77,14 @@
         </div>
         <form id="newTaskForm" onsubmit="handleAddTask(event)">
           <div class="form-group full-width">
+            <label for="taskProject">פרויקטים</label>
+            <select id="taskProject">
+              <!-- Populated dynamically via JS -->
+            </select>
+          </div>
+
+          <div class="form-group full-width">
+            <label for="taskTitle">הוסף משימה</label>
             <input
               type="text"
               id="taskTitle"
@@ -85,40 +93,41 @@
             />
           </div>
 
-          <div class="form-row">
-            <div class="form-group">
-              <label for="taskProject">פרויקטים</label>
-              <select id="taskProject">
-                <!-- Populated dynamically via JS -->
-              </select>
-            </div>
+          <div class="form-group full-width">
+            <label for="taskPriority">עדיפות</label>
+            <select id="taskPriority">
+              <option value="high">עליונה</option>
+              <option value="medium" selected>רגילה</option>
+              <option value="low">נמוכה</option>
+            </select>
+          </div>
 
-            <div class="form-group">
-              <label for="taskPriority">עדיפות</label>
-              <select id="taskPriority">
-                <option value="high">עליונה</option>
-                <option value="medium" selected>רגילה</option>
-                <option value="low">נמוכה</option>
-              </select>
-            </div>
-
+          <div class="form-row form-row-submit">
             <div class="form-group">
               <label for="taskDueDate">תאריך יעד</label>
               <input type="date" id="taskDueDate" />
             </div>
+            <button type="submit" class="btn btn-submit">
+              <i class="fa-solid fa-plus"></i> הוסף משימה
+            </button>
           </div>
-
-          <button type="submit" class="btn btn-submit">
-            <i class="fa-solid fa-plus"></i> הוסף משימה
-          </button>
         </form>
       </section>
 
       <!-- Navigation Tabs & Filtering Bar -->
       <section class="controls-section">
         <div class="projects-bar-container">
-          <div class="projects-tabs" id="projectTabs">
-            <!-- Project Tabs rendered dynamically -->
+          <div class="project-select-wrapper">
+            <label for="activeProjectSelect" class="project-select-label"
+              >פרויקט</label
+            >
+            <select
+              id="activeProjectSelect"
+              class="project-dropdown"
+              onchange="switchProject(this.value)"
+            >
+              <!-- Populated dynamically via JS -->
+            </select>
           </div>
           <button
             class="btn btn-add-project"
@@ -303,7 +312,7 @@
 
             <div class="form-group full-width">
               <label for="editTaskTitle">תיאור המשימה</label>
-              <input type="text" id="editTaskTitle" required />
+              <textarea id="editTaskTitle" rows="3" required></textarea>
             </div>
 
             <div class="form-group full-width">
