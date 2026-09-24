@@ -26,9 +26,24 @@ const firebaseConfig = {
   measurementId: "G-G2CDH735EJ",
 };
 
-// Initialize Firebase & Firestore
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+// Initialize Firebase & Firestore (safe – won't crash if config is empty)
+let app = null;
+let db = null;
+let firebaseReady = false;
+
+try {
+  if (firebaseConfig.apiKey && firebaseConfig.projectId) {
+    app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+    firebaseReady = true;
+  } else {
+    console.warn(
+      "Firebase config is empty. Fill firebaseConfig in script.js to enable cloud sync.",
+    );
+  }
+} catch (err) {
+  console.error("Firebase init failed:", err);
+}
 
 // Application State
 let projects = [];
@@ -41,7 +56,6 @@ let searchQuery = "";
 const tasksContainer = document.getElementById("tasksContainer");
 const themeToggleBtn = document.getElementById("themeToggleBtn");
 const backupBtn = document.getElementById("backupBtn");
-const installAppBtn = document.getElementById("installAppBtn");
 const searchInput = document.getElementById("searchInput");
 const clearSearchBtn = document.getElementById("clearSearchBtn");
 
@@ -51,13 +65,24 @@ const clearSearchBtn = document.getElementById("clearSearchBtn");
 document.addEventListener("DOMContentLoaded", async () => {
   initTheme();
   setupEventListeners();
-  await fetchAllDataFromFirestore();
+  if (firebaseReady) {
+    await fetchAllDataFromFirestore();
+  } else {
+    // Fallback defaults so UI still works until config is filled
+    projects = ["פרויקט כללי"];
+    activeProject = projects[0];
+    tasks = [];
+    renderProjectsUI();
+    renderTasks();
+    updateStats();
+  }
 });
 
 /* ==========================================================================
    Firestore Operations
    ========================================================================== */
 async function fetchAllDataFromFirestore() {
+  if (!firebaseReady) return;
   try {
     // Load Projects
     const projectsSnapshot = await getDocs(collection(db, "projects"));
@@ -85,10 +110,19 @@ async function fetchAllDataFromFirestore() {
     alert(
       "שגיאה בטעינת הנתונים מ-Firebase. בדוק את הקונפיגורציה ואת חוקי האבטחה.",
     );
+    // Fallback so UI is usable
+    if (projects.length === 0) {
+      projects = ["פרויקט כללי"];
+      activeProject = projects[0];
+    }
+    renderProjectsUI();
+    renderTasks();
+    updateStats();
   }
 }
 
 async function saveTaskToFirestore(task) {
+  if (!firebaseReady) return;
   try {
     await setDoc(doc(db, "tasks", String(task.id)), task);
   } catch (error) {
@@ -97,6 +131,7 @@ async function saveTaskToFirestore(task) {
 }
 
 async function deleteTaskFromFirestore(taskId) {
+  if (!firebaseReady) return;
   try {
     await deleteDoc(doc(db, "tasks", String(taskId)));
   } catch (error) {
@@ -105,6 +140,7 @@ async function deleteTaskFromFirestore(taskId) {
 }
 
 async function saveProjectToFirestore(projectName) {
+  if (!firebaseReady) return;
   try {
     await setDoc(doc(db, "projects", projectName), { name: projectName });
   } catch (error) {
@@ -113,6 +149,7 @@ async function saveProjectToFirestore(projectName) {
 }
 
 async function deleteProjectFromFirestore(projectName) {
+  if (!firebaseReady) return;
   try {
     await deleteDoc(doc(db, "projects", projectName));
   } catch (error) {
@@ -141,29 +178,6 @@ function setupEventListeners() {
 
   // Backup Dialog Opener
   backupBtn.addEventListener("click", () => openModal("backupModal"));
-
-  // PWA Install
-  let deferredPrompt;
-  window.addEventListener("beforeinstallprompt", (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    installAppBtn.style.display = "inline-flex";
-  });
-
-  installAppBtn.addEventListener("click", async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === "accepted") {
-        installAppBtn.style.display = "none";
-      }
-      deferredPrompt = null;
-    } else {
-      alert(
-        'כדי להוסיף למסך הבית בדפדפן זה, יש ללחוץ על תפריט האפשרויות ולבחור "הוסף למסך הבית".',
-      );
-    }
-  });
 }
 
 /* ==========================================================================
