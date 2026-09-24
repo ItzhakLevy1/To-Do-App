@@ -31,6 +31,8 @@ const tasksContainer = document.getElementById("tasksContainer");
 const themeToggleBtn = document.getElementById("themeToggleBtn");
 const backupBtn = document.getElementById("backupBtn");
 const installAppBtn = document.getElementById("installAppBtn");
+const searchInput = document.getElementById("searchInput");
+const clearSearchBtn = document.getElementById("clearSearchBtn");
 
 // Primary Application Load Handler
 document.addEventListener("DOMContentLoaded", () => {
@@ -385,9 +387,18 @@ function saveEditedTask(e) {
   }
 }
 
-/* Search Box Keyboard Event Handler */
+/* Search Input Controls */
 function handleSearch() {
-  searchQuery = document.getElementById("searchInput").value;
+  searchQuery = searchInput.value;
+  clearSearchBtn.style.display = searchQuery.length > 0 ? "block" : "none";
+  renderTasks();
+}
+
+function clearSearch() {
+  searchInput.value = "";
+  searchQuery = "";
+  clearSearchBtn.style.display = "none";
+  searchInput.focus();
   renderTasks();
 }
 

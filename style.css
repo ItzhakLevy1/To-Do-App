@@ -389,20 +389,22 @@ body {
   border-color: var(--primary-color);
 }
 
+/* Expanded Full-Width Search Box Style for Laptop/Desktop Screens */
 .search-box {
   position: relative;
   flex: 1;
-  max-width: 350px;
+  min-width: 250px;
 }
 
 .search-box input {
   width: 100%;
-  padding: 0.6rem 2.5rem 0.6rem 1rem;
+  padding: 0.6rem 2.8rem 0.6rem 2.5rem;
   border-radius: 20px;
   border: 1px solid var(--border-color);
   background-color: var(--card-bg);
   color: var(--text-primary);
   outline: none;
+  font-size: 0.95rem;
 }
 
 .search-icon {
@@ -411,6 +413,26 @@ body {
   top: 50%;
   transform: translateY(-50%);
   color: var(--text-secondary);
+}
+
+.clear-search-btn {
+  position: absolute;
+  left: 0.8rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  cursor: pointer;
+  display: none;
+  padding: 0.2rem;
+  border-radius: 50%;
+  line-height: 1;
+}
+
+.clear-search-btn:hover {
+  color: var(--priority-high);
 }
 
 /* Task Card Component Layout */
@@ -642,7 +664,7 @@ body {
   }
 
   .search-box {
-    max-width: 100%;
+    width: 100%;
   }
 
   .active-project-actions {
