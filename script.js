@@ -98,9 +98,16 @@ async function fetchAllDataFromFirestore() {
 
     activeProject = projects[0];
 
-    // Load Tasks
+    // Load Tasks – normalize id to string for reliable drag/drop matching
     const tasksSnapshot = await getDocs(collection(db, "tasks"));
-    tasks = tasksSnapshot.docs.map((d) => d.data());
+    tasks = tasksSnapshot.docs.map((d) => {
+      const data = d.data();
+      return {
+        ...data,
+        id: String(data.id ?? d.id),
+        order: data.order != null ? Number(data.order) : undefined,
+      };
+    });
 
     renderProjectsUI();
     renderTasks();
@@ -321,6 +328,12 @@ async function handleAddTask(e) {
   const priorityInput = document.getElementById("taskPriority");
   const dueDateInput = document.getElementById("taskDueDate");
 
+  const projectTasks = tasks.filter((t) => t.project === projectInput.value);
+  const maxOrder = projectTasks.reduce(
+    (max, t) => Math.max(max, t.order ?? 0),
+    0,
+  );
+
   const newTask = {
     id: Date.now().toString(),
     title: titleInput.value.trim(),
@@ -330,6 +343,7 @@ async function handleAddTask(e) {
     status: "todo",
     createdAt: new Date().toISOString().split("T")[0],
     dueDate: dueDateInput.value || null,
+    order: maxOrder + 1,
   };
 
   tasks.unshift(newTask);
@@ -361,10 +375,8 @@ function renderTasks() {
     );
   }
 
-  const priorityMap = { high: 1, medium: 2, low: 3 };
-  filteredTasks.sort(
-    (a, b) => priorityMap[a.priority] - priorityMap[b.priority],
-  );
+  // Sort by custom order (drag-drop), then by priority as fallback
+  filteredTasks.sort(compareTasksOrder);
 
   tasksContainer.innerHTML = "";
 
@@ -381,6 +393,7 @@ function renderTasks() {
   filteredTasks.forEach((task) => {
     const taskCard = document.createElement("div");
     taskCard.className = "task-card";
+    taskCard.dataset.taskId = String(task.id);
 
     const priorityLabels = { high: "עליונה", medium: "רגילה", low: "נמוכה" };
 
@@ -406,6 +419,9 @@ function renderTasks() {
                 </button>`;
 
     taskCard.innerHTML = `
+            <div class="drag-handle" title="גרור לשינוי סדר">
+                <i class="fa-solid fa-grip-vertical"></i>
+            </div>
             <div class="task-main-content">
                 <span class="task-title-text ${task.status === "completed" ? "completed-text" : ""}">${escapeHtml(task.title)}</span>
                 ${noteHtml}
@@ -440,6 +456,207 @@ function renderTasks() {
 
     tasksContainer.appendChild(taskCard);
   });
+
+  setupPointerSort();
+}
+
+/* ==========================================================================
+   Pointer-based Sort (desktop + tablet + mobile)
+   ========================================================================== */
+let sortPointerId = null;
+let sortActiveCard = null;
+let sortStartY = 0;
+let sortMoved = false;
+let sortInitialized = false;
+let sortLastClientX = 0;
+let sortLastClientY = 0;
+let sortAutoScrollRAF = null;
+
+function compareTasksOrder(a, b) {
+  const priorityMap = { high: 1, medium: 2, low: 3 };
+  const orderA = a.order != null ? Number(a.order) : Number.MAX_SAFE_INTEGER;
+  const orderB = b.order != null ? Number(b.order) : Number.MAX_SAFE_INTEGER;
+  if (orderA !== orderB) return orderA - orderB;
+  return (priorityMap[a.priority] || 9) - (priorityMap[b.priority] || 9);
+}
+
+function setupPointerSort() {
+  if (sortInitialized || !tasksContainer) return;
+  sortInitialized = true;
+
+  tasksContainer.addEventListener("pointerdown", onSortPointerDown);
+  document.addEventListener("pointermove", onSortPointerMove);
+  document.addEventListener("pointerup", onSortPointerUp);
+  document.addEventListener("pointercancel", onSortPointerUp);
+}
+
+function onSortPointerDown(e) {
+  const handle = e.target.closest(".drag-handle");
+  if (!handle) return;
+
+  const card = handle.closest(".task-card");
+  if (!card || !tasksContainer.contains(card)) return;
+
+  if (e.pointerType === "mouse" && e.button !== 0) return;
+
+  sortPointerId = e.pointerId;
+  sortActiveCard = card;
+  sortStartY = e.clientY;
+  sortLastClientX = e.clientX;
+  sortLastClientY = e.clientY;
+  sortMoved = false;
+
+  card.classList.add("dragging");
+  document.body.classList.add("is-sorting");
+  handle.setPointerCapture?.(e.pointerId);
+
+  e.preventDefault();
+  startAutoScrollLoop();
+}
+
+function onSortPointerMove(e) {
+  if (sortPointerId === null || e.pointerId !== sortPointerId) return;
+  if (!sortActiveCard) return;
+
+  e.preventDefault();
+  sortLastClientX = e.clientX;
+  sortLastClientY = e.clientY;
+
+  if (Math.abs(e.clientY - sortStartY) > 4) {
+    sortMoved = true;
+  }
+
+  updateCardUnderPointer(sortLastClientX, sortLastClientY);
+}
+
+function updateCardUnderPointer(clientX, clientY) {
+  if (!sortActiveCard) return;
+
+  sortActiveCard.style.pointerEvents = "none";
+  const el = document.elementFromPoint(clientX, clientY);
+  sortActiveCard.style.pointerEvents = "";
+
+  const overCard = el?.closest?.(".task-card");
+
+  tasksContainer
+    .querySelectorAll(".task-card.drag-over")
+    .forEach((c) => c.classList.remove("drag-over"));
+
+  if (
+    overCard &&
+    overCard !== sortActiveCard &&
+    tasksContainer.contains(overCard)
+  ) {
+    overCard.classList.add("drag-over");
+    const rect = overCard.getBoundingClientRect();
+    const before = clientY < rect.top + rect.height / 2;
+    if (before) {
+      tasksContainer.insertBefore(sortActiveCard, overCard);
+    } else {
+      tasksContainer.insertBefore(sortActiveCard, overCard.nextSibling);
+    }
+  }
+}
+
+/* Auto-scroll the page while dragging near top/bottom edges */
+function startAutoScrollLoop() {
+  stopAutoScrollLoop();
+
+  const EDGE = 70; // px from viewport edge to trigger scroll
+  const MAX_SPEED = 18; // px per frame
+
+  const tick = () => {
+    if (!sortActiveCard) {
+      sortAutoScrollRAF = null;
+      return;
+    }
+
+    const y = sortLastClientY;
+    const vh = window.innerHeight;
+    let dy = 0;
+
+    if (y < EDGE) {
+      // Closer to edge = faster scroll
+      dy = -MAX_SPEED * (1 - y / EDGE);
+    } else if (y > vh - EDGE) {
+      dy = MAX_SPEED * (1 - (vh - y) / EDGE);
+    }
+
+    if (dy !== 0) {
+      window.scrollBy(0, dy);
+      // After scroll, re-evaluate which card is under the pointer
+      updateCardUnderPointer(sortLastClientX, sortLastClientY);
+    }
+
+    sortAutoScrollRAF = requestAnimationFrame(tick);
+  };
+
+  sortAutoScrollRAF = requestAnimationFrame(tick);
+}
+
+function stopAutoScrollLoop() {
+  if (sortAutoScrollRAF != null) {
+    cancelAnimationFrame(sortAutoScrollRAF);
+    sortAutoScrollRAF = null;
+  }
+}
+
+function onSortPointerUp(e) {
+  if (sortPointerId === null || e.pointerId !== sortPointerId) return;
+
+  stopAutoScrollLoop();
+
+  if (sortActiveCard) {
+    sortActiveCard.classList.remove("dragging");
+    sortActiveCard.style.pointerEvents = "";
+  }
+  tasksContainer
+    .querySelectorAll(".task-card.drag-over")
+    .forEach((c) => c.classList.remove("drag-over"));
+  document.body.classList.remove("is-sorting");
+
+  const didMove = sortMoved;
+  sortPointerId = null;
+  sortActiveCard = null;
+  sortMoved = false;
+
+  if (didMove) {
+    persistDomOrder();
+  }
+}
+
+function persistDomOrder() {
+  const cards = [...tasksContainer.querySelectorAll(".task-card")];
+  if (cards.length === 0) return;
+
+  const orderedIds = cards.map((c) => String(c.dataset.taskId));
+  const orderMap = new Map();
+  orderedIds.forEach((id, i) => orderMap.set(id, i + 1));
+
+  // Tasks filtered out of the current view stay after the visible ones
+  const hidden = tasks
+    .filter((t) => t.project === activeProject && !orderMap.has(String(t.id)))
+    .sort(compareTasksOrder);
+  let next = orderedIds.length + 1;
+  for (const t of hidden) {
+    orderMap.set(String(t.id), next++);
+  }
+
+  for (const t of tasks) {
+    if (t.project === activeProject && orderMap.has(String(t.id))) {
+      t.order = orderMap.get(String(t.id));
+    }
+  }
+
+  // Always re-render so sort order is applied cleanly
+  renderTasks();
+
+  const toSave = tasks.filter(
+    (t) => t.project === activeProject && orderMap.has(String(t.id)),
+  );
+  Promise.all(toSave.map((t) => saveTaskToFirestore(t))).catch((err) =>
+    console.error("Failed saving task order:", err),
+  );
 }
 
 async function updateTaskStatus(taskId, newStatus) {
