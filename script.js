@@ -316,6 +316,7 @@ async function deleteCurrentProject() {
 async function handleAddTask(e) {
   e.preventDefault();
   const titleInput = document.getElementById("taskTitle");
+  const noteInput = document.getElementById("taskNote");
   const projectInput = document.getElementById("taskProject");
   const priorityInput = document.getElementById("taskPriority");
   const dueDateInput = document.getElementById("taskDueDate");
@@ -323,6 +324,7 @@ async function handleAddTask(e) {
   const newTask = {
     id: Date.now().toString(),
     title: titleInput.value.trim(),
+    note: noteInput.value.trim() || null,
     project: projectInput.value,
     priority: priorityInput.value,
     status: "todo",
@@ -334,6 +336,7 @@ async function handleAddTask(e) {
   await saveTaskToFirestore(newTask);
 
   titleInput.value = "";
+  noteInput.value = "";
   dueDateInput.value = "";
 
   switchProject(newTask.project);
@@ -350,8 +353,11 @@ function renderTasks() {
   }
 
   if (searchQuery) {
-    filteredTasks = filteredTasks.filter((task) =>
-      task.title.toLowerCase().includes(searchQuery.toLowerCase()),
+    const q = searchQuery.toLowerCase();
+    filteredTasks = filteredTasks.filter(
+      (task) =>
+        task.title.toLowerCase().includes(q) ||
+        (task.note && task.note.toLowerCase().includes(q)),
     );
   }
 
@@ -378,9 +384,31 @@ function renderTasks() {
 
     const priorityLabels = { high: "עליונה", medium: "רגילה", low: "נמוכה" };
 
+    const noteHtml = task.note
+      ? `
+                <div class="task-note">
+                    <div class="task-note-content">
+                        <i class="fa-regular fa-note-sticky note-icon"></i>
+                        <span class="task-note-text">${escapeHtml(task.note)}</span>
+                    </div>
+                    <div class="task-note-actions">
+                        <button class="icon-action-btn" onclick="openEditNoteModal('${task.id}')" title="ערוך הערה">
+                            <i class="fa-solid fa-pen"></i>
+                        </button>
+                        <button class="icon-action-btn delete-btn" onclick="deleteNote('${task.id}')" title="מחק הערה">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                </div>`
+      : `
+                <button class="btn-add-note" onclick="openEditNoteModal('${task.id}')" title="הוסף הערה">
+                    <i class="fa-regular fa-note-sticky"></i> הוסף הערה
+                </button>`;
+
     taskCard.innerHTML = `
             <div class="task-main-content">
                 <span class="task-title-text ${task.status === "completed" ? "completed-text" : ""}">${escapeHtml(task.title)}</span>
+                ${noteHtml}
                 <div class="task-priority-actions">
                     <span class="priority-badge priority-${task.priority}">${priorityLabels[task.priority]}</span>
                     <div class="task-icon-actions">
@@ -439,6 +467,7 @@ function openEditTaskModal(taskId) {
 
   document.getElementById("editTaskId").value = task.id;
   document.getElementById("editTaskTitle").value = task.title;
+  document.getElementById("editTaskNote").value = task.note || "";
   document.getElementById("editTaskProject").value = task.project;
   document.getElementById("editTaskPriority").value = task.priority;
   document.getElementById("editTaskDueDate").value = task.dueDate || "";
@@ -453,6 +482,7 @@ async function saveEditedTask(e) {
 
   if (task) {
     task.title = document.getElementById("editTaskTitle").value.trim();
+    task.note = document.getElementById("editTaskNote").value.trim() || null;
     task.project = document.getElementById("editTaskProject").value;
     task.priority = document.getElementById("editTaskPriority").value;
     task.dueDate = document.getElementById("editTaskDueDate").value || null;
@@ -462,6 +492,39 @@ async function saveEditedTask(e) {
     switchProject(task.project);
     updateStats();
   }
+}
+
+/* Note edit / delete */
+function openEditNoteModal(taskId) {
+  const task = tasks.find((t) => t.id === taskId);
+  if (!task) return;
+
+  document.getElementById("editNoteTaskId").value = task.id;
+  document.getElementById("editNoteText").value = task.note || "";
+  openModal("editNoteModal");
+}
+
+async function saveNote(e) {
+  e.preventDefault();
+  const id = document.getElementById("editNoteTaskId").value;
+  const task = tasks.find((t) => t.id === id);
+  if (!task) return;
+
+  task.note = document.getElementById("editNoteText").value.trim() || null;
+  await saveTaskToFirestore(task);
+  closeModal("editNoteModal");
+  renderTasks();
+}
+
+async function deleteNote(taskId) {
+  if (!confirm("האם למחוק את ההערה?")) return;
+
+  const task = tasks.find((t) => t.id === taskId);
+  if (!task) return;
+
+  task.note = null;
+  await saveTaskToFirestore(task);
+  renderTasks();
 }
 
 /* ==========================================================================
@@ -612,6 +675,9 @@ window.updateTaskStatus = updateTaskStatus;
 window.deleteTask = deleteTask;
 window.openEditTaskModal = openEditTaskModal;
 window.saveEditedTask = saveEditedTask;
+window.openEditNoteModal = openEditNoteModal;
+window.saveNote = saveNote;
+window.deleteNote = deleteNote;
 window.handleSearch = handleSearch;
 window.clearSearch = clearSearch;
 window.openModal = openModal;

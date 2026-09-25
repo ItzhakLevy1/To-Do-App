@@ -90,6 +90,15 @@
           </div>
 
           <div class="form-group full-width">
+            <label for="taskNote">הערה (אופציונלי)</label>
+            <textarea
+              id="taskNote"
+              rows="2"
+              placeholder="הוסף הערה למשימה..."
+            ></textarea>
+          </div>
+
+          <div class="form-group full-width">
             <label for="taskPriority">עדיפות</label>
             <select id="taskPriority">
               <option value="high">עליונה</option>
@@ -293,6 +302,41 @@
       </div>
     </div>
 
+    <!-- Modal: Edit Note -->
+    <div class="modal-overlay" id="editNoteModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>עריכת הערה</h3>
+          <button class="close-btn" onclick="closeModal('editNoteModal')">
+            &times;
+          </button>
+        </div>
+        <div class="modal-body">
+          <form id="editNoteForm" onsubmit="saveNote(event)">
+            <input type="hidden" id="editNoteTaskId" />
+            <div class="form-group full-width">
+              <label for="editNoteText">הערה</label>
+              <textarea
+                id="editNoteText"
+                rows="4"
+                placeholder="כתוב הערה למשימה..."
+              ></textarea>
+            </div>
+            <div class="modal-actions">
+              <button type="submit" class="btn btn-submit">שמור הערה</button>
+              <button
+                type="button"
+                class="btn btn-outline-dark"
+                onclick="closeModal('editNoteModal')"
+              >
+                ביטול
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
     <!-- Modal: Edit Task -->
     <div class="modal-overlay" id="editTaskModal">
       <div class="modal-content">
@@ -309,6 +353,15 @@
             <div class="form-group full-width">
               <label for="editTaskTitle">תיאור המשימה</label>
               <textarea id="editTaskTitle" rows="3" required></textarea>
+            </div>
+
+            <div class="form-group full-width">
+              <label for="editTaskNote">הערה</label>
+              <textarea
+                id="editTaskNote"
+                rows="3"
+                placeholder="הוסף הערה למשימה..."
+              ></textarea>
             </div>
 
             <div class="form-group full-width">
