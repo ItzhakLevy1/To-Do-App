@@ -402,7 +402,13 @@ function renderTasks() {
                 <div class="task-note">
                     <div class="task-note-content">
                         <i class="fa-regular fa-note-sticky note-icon"></i>
-                        <span class="task-note-text">${escapeHtml(task.note)}</span>
+                        <div class="clamp-block" data-clamp="note">
+                            <span class="task-note-text clamp-text">${escapeHtml(task.note)}</span>
+                            <button type="button" class="clamp-toggle" hidden onclick="toggleClamp(this)">
+                                <span class="clamp-more">הצג עוד</span>
+                                <span class="clamp-less">הצג פחות</span>
+                            </button>
+                        </div>
                     </div>
                     <div class="task-note-actions">
                         <button class="icon-action-btn" onclick="openEditNoteModal('${task.id}')" title="ערוך הערה">
@@ -423,7 +429,13 @@ function renderTasks() {
                 <i class="fa-solid fa-grip-vertical"></i>
             </div>
             <div class="task-main-content">
-                <span class="task-title-text ${task.status === "completed" ? "completed-text" : ""}">${escapeHtml(task.title)}</span>
+                <div class="clamp-block" data-clamp="title">
+                    <span class="task-title-text clamp-text ${task.status === "completed" ? "completed-text" : ""}">${escapeHtml(task.title)}</span>
+                    <button type="button" class="clamp-toggle" hidden onclick="toggleClamp(this)">
+                        <span class="clamp-more">הצג עוד</span>
+                        <span class="clamp-less">הצג פחות</span>
+                    </button>
+                </div>
                 ${noteHtml}
                 <div class="task-priority-actions">
                     <span class="priority-badge priority-${task.priority}">${priorityLabels[task.priority]}</span>
@@ -457,7 +469,28 @@ function renderTasks() {
     tasksContainer.appendChild(taskCard);
   });
 
+  // Show "הצג עוד" only when text overflows 2 lines
+  requestAnimationFrame(() => initClampToggles());
   setupPointerSort();
+}
+
+function initClampToggles() {
+  document.querySelectorAll(".clamp-block").forEach((block) => {
+    const text = block.querySelector(".clamp-text");
+    const btn = block.querySelector(".clamp-toggle");
+    if (!text || !btn) return;
+
+    // Measure while clamped
+    block.classList.remove("is-expanded");
+    const overflows = text.scrollHeight > text.clientHeight + 1;
+    btn.hidden = !overflows;
+  });
+}
+
+function toggleClamp(btn) {
+  const block = btn.closest(".clamp-block");
+  if (!block) return;
+  block.classList.toggle("is-expanded");
 }
 
 /* ==========================================================================
@@ -895,6 +928,7 @@ window.saveEditedTask = saveEditedTask;
 window.openEditNoteModal = openEditNoteModal;
 window.saveNote = saveNote;
 window.deleteNote = deleteNote;
+window.toggleClamp = toggleClamp;
 window.handleSearch = handleSearch;
 window.clearSearch = clearSearch;
 window.openModal = openModal;

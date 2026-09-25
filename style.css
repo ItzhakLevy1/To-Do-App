@@ -628,11 +628,69 @@ body.is-sorting .task-card:not(.dragging) {
   font-weight: 600;
   color: var(--text-primary);
   line-height: 1.4;
+  display: block;
+  word-break: break-word;
 }
 
 .task-title-text.completed-text {
   text-decoration: line-through;
   opacity: 0.6;
+}
+
+/* Clamp long title / note to 2 lines with expand toggle */
+.clamp-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  min-width: 0;
+  width: 100%;
+}
+
+.clamp-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.clamp-block.is-expanded .clamp-text {
+  display: block;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+  overflow: visible;
+  white-space: pre-wrap;
+}
+
+.clamp-toggle {
+  background: none;
+  border: none;
+  color: var(--primary-color);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.1rem 0;
+  align-self: flex-start;
+}
+
+.clamp-toggle:hover {
+  text-decoration: underline;
+}
+
+.clamp-block .clamp-less {
+  display: none;
+}
+
+.clamp-block.is-expanded .clamp-more {
+  display: none;
+}
+
+.clamp-block.is-expanded .clamp-less {
+  display: inline;
 }
 
 /* Task note */
@@ -666,7 +724,6 @@ body.is-sorting .task-card:not(.dragging) {
   font-size: 0.88rem;
   color: var(--text-secondary);
   line-height: 1.45;
-  white-space: pre-wrap;
   word-break: break-word;
 }
 
