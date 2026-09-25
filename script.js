@@ -425,8 +425,8 @@ function renderTasks() {
                 </button>`;
 
     taskCard.innerHTML = `
-            <div class="drag-handle" title="גרור לשינוי סדר">
-                <i class="fa-solid fa-grip-vertical"></i>
+            <div class="drag-handle" title="גרור לשינוי סדר" aria-label="גרור לשינוי סדר">
+                <span class="grip-dots" aria-hidden="true"></span>
             </div>
             <div class="task-main-content">
                 <div class="clamp-block" data-clamp="title">
@@ -437,25 +437,46 @@ function renderTasks() {
                     </button>
                 </div>
                 ${noteHtml}
-                <div class="task-priority-actions">
+                <div class="task-priority-actions task-priority-actions--mobile">
                     <span class="priority-badge priority-${task.priority}">${priorityLabels[task.priority]}</span>
-                    <div class="task-icon-actions">
-                        <button class="icon-action-btn" onclick="openEditTaskModal('${task.id}')" title="ערוך משימה">
+                    <div class="task-edit-actions task-controls-inline">
+                        <button type="button" class="icon-action-btn" onclick="openEditTaskModal('${task.id}')" title="ערוך משימה">
                             <i class="fa-solid fa-pen"></i>
                         </button>
-                        <button class="icon-action-btn delete-btn" onclick="deleteTask('${task.id}')" title="מחק משימה">
+                        <button type="button" class="icon-action-btn delete-btn" onclick="deleteTask('${task.id}')" title="מחק משימה">
                             <i class="fa-solid fa-trash-can"></i>
                         </button>
                     </div>
+                    <div class="task-move-actions task-controls-inline">
+                        <button type="button" class="icon-action-btn move-btn" onclick="moveTask('${task.id}', 'up')" title="הזז למעלה">
+                            <i class="fa-solid fa-arrow-up"></i>
+                        </button>
+                        <button type="button" class="icon-action-btn move-btn" onclick="moveTask('${task.id}', 'down')" title="הזז למטה">
+                            <i class="fa-solid fa-arrow-down"></i>
+                        </button>
+                    </div>
                 </div>
-                <div class="task-meta">
+                <div class="task-meta task-meta--mobile">
                     <span><i class="fa-regular fa-calendar-plus"></i> נוצר: ${task.createdAt}</span>
                     ${task.dueDate ? `<span><i class="fa-regular fa-calendar-check"></i> יעד: ${task.dueDate}</span>` : ""}
                 </div>
             </div>
 
             <div class="task-actions">
-                <div class="status-btn-group">
+                 <span class="priority-badge task-controls-footer priority-${task.priority}">${priorityLabels[task.priority]}</span>
+                 <div class="task-meta task-meta--footer">
+                     <span><i class="fa-regular fa-calendar-plus"></i> נוצר: ${task.createdAt}</span>
+                     ${task.dueDate ? `<span><i class="fa-regular fa-calendar-check"></i> יעד: ${task.dueDate}</span>` : ""}
+                 </div>
+                 <div class="task-move-actions task-controls-footer">
+                     <button type="button" class="icon-action-btn move-btn" onclick="moveTask('${task.id}', 'up')" title="הזז למעלה"><i class="fa-solid fa-arrow-up"></i></button>
+                     <button type="button" class="icon-action-btn move-btn" onclick="moveTask('${task.id}', 'down')" title="הזז למטה"><i class="fa-solid fa-arrow-down"></i></button>
+                 </div>
+                 <div class="task-edit-actions task-controls-footer">
+                     <button type="button" class="icon-action-btn" onclick="openEditTaskModal('${task.id}')" title="ערוך משימה"><i class="fa-solid fa-pen"></i></button>
+                     <button type="button" class="icon-action-btn delete-btn" onclick="deleteTask('${task.id}')" title="מחק משימה"><i class="fa-solid fa-trash-can"></i></button>
+                 </div>
+                 <div class="status-btn-group">
                     <button class="status-btn ${task.status === "todo" ? "selected" : ""}" 
                         onclick="updateTaskStatus('${task.id}', 'todo')">לביצוע</button>
                     <button class="status-btn ${task.status === "in-progress" ? "selected" : ""}" 
@@ -656,6 +677,29 @@ function onSortPointerUp(e) {
   if (didMove) {
     persistDomOrder();
   }
+}
+
+/** Move task one step up or down in the visible list */
+function moveTask(taskId, direction) {
+  taskId = String(taskId);
+  const cards = [...tasksContainer.querySelectorAll(".task-card")];
+  const ids = cards.map((c) => String(c.dataset.taskId));
+  const index = ids.indexOf(taskId);
+  if (index === -1) return;
+
+  const swapWith = direction === "up" ? index - 1 : index + 1;
+  if (swapWith < 0 || swapWith >= ids.length) return;
+
+  // Swap in DOM
+  const card = cards[index];
+  const other = cards[swapWith];
+  if (direction === "up") {
+    tasksContainer.insertBefore(card, other);
+  } else {
+    tasksContainer.insertBefore(other, card);
+  }
+
+  persistDomOrder();
 }
 
 function persistDomOrder() {
@@ -929,6 +973,7 @@ window.openEditNoteModal = openEditNoteModal;
 window.saveNote = saveNote;
 window.deleteNote = deleteNote;
 window.toggleClamp = toggleClamp;
+window.moveTask = moveTask;
 window.handleSearch = handleSearch;
 window.clearSearch = clearSearch;
 window.openModal = openModal;

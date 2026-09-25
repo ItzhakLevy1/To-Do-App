@@ -537,24 +537,38 @@ body.is-sorting .task-card:not(.dragging) {
 .drag-handle {
   position: absolute;
   top: 50%;
-  right: 0.2rem;
+  right: 0.15rem;
   transform: translateY(-50%);
   cursor: grab;
   color: var(--text-secondary);
-  padding: 0.75rem 0.5rem;
+  padding: 0.5rem 0.35rem;
   display: flex;
   align-items: center;
   justify-content: center;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
-  opacity: 0.5;
+  opacity: 0.55;
   transition:
     opacity 0.2s,
     color 0.2s;
   z-index: 2;
-  min-width: 36px;
-  min-height: 44px;
+  min-width: 40px;
+  min-height: 48px;
+}
+
+/* Custom grip: 4 columns × 5 rows of dots */
+.grip-dots {
+  width: 16px;
+  height: 20px;
+  background-image: radial-gradient(
+    circle at center,
+    currentColor 1.2px,
+    transparent 1.3px
+  );
+  background-size: 4px 4px;
+  background-repeat: repeat;
+  background-position: 0 0;
 }
 
 .drag-handle:hover,
@@ -578,7 +592,7 @@ body.is-sorting .task-card:not(.dragging) {
 .task-main-content {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 4rem;
   flex: 1;
   width: 100%;
 }
@@ -592,15 +606,110 @@ body.is-sorting .task-card:not(.dragging) {
 .task-priority-actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
   width: 100%;
+  gap: 0.35rem;
 }
 
-.task-icon-actions {
+.task-edit-actions,
+.task-move-actions {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.1rem;
+  flex-shrink: 0;
+  justify-content: center;
+}
+
+/* Footer controls only on desktop */
+.task-controls-footer {
+  display: none;
+}
+
+.task-actions .priority-badge.task-controls-footer,
+.task-actions .task-meta--footer {
+  display: none;
+}
+
+.icon-action-btn.move-btn {
+  color: var(--text-secondary);
+}
+
+.icon-action-btn.move-btn:hover {
+  color: var(--primary-color);
+  background-color: var(--primary-light);
+}
+
+/* Desktop / laptop: one centered bottom bar */
+@media (min-width: 769px) {
+  /* Hide mobile-only priority row + meta */
+  .task-priority-actions--mobile,
+  .task-meta--mobile {
+    display: none !important;
+  }
+
+  /* Larger grip – similar visual weight to mobile */
+  .task-card {
+    padding-right: 2.75rem;
+  }
+
+  .drag-handle {
+    min-width: 40px;
+    min-height: 64px;
+    padding: 0.4rem 0.3rem;
+  }
+
+  .drag-handle .grip-dots {
+    width: 28px;
+    height: 36px;
+    background-size: 7px 7px;
+  }
+
+  /*
+   * Centered bottom row:
+   * badge | dates | ↑↓ | edit/delete | status buttons
+   */
+  .task-actions {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: space-around;
+    flex-direction: row-reverse;
+    gap: 0.65rem 1rem;
+    width: 100%;
+    direction: rtl;
+    white-space: nowrap;
+  }
+
+  .task-actions .task-controls-footer {
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+  }
+
+  .task-actions .priority-badge.task-controls-footer {
+    display: inline-flex;
+  }
+
+  .task-actions .task-meta--footer {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.75rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+  }
+
+  .task-actions .task-move-actions.task-controls-footer {
+    margin-right: 0.25rem;
+  }
+
+  .task-actions .task-edit-actions.task-controls-footer {
+    margin-right: 0.75rem; /* space between arrows and edit */
+  }
+
+  .task-actions .status-btn-group {
+    display: flex;
+    gap: 0.4rem;
+    flex-shrink: 0;
+  }
 }
 
 .priority-badge {
@@ -696,7 +805,6 @@ body.is-sorting .task-card:not(.dragging) {
 /* Task note */
 .task-note {
   display: flex;
-  align-items: flex-start;
   justify-content: space-between;
   gap: 0.5rem;
   background-color: var(--bg-color);
@@ -704,6 +812,7 @@ body.is-sorting .task-card:not(.dragging) {
   border-radius: var(--radius-sm);
   padding: 0.6rem 0.75rem;
   margin-top: 0.15rem;
+  margin-bottom: 4rem;
 }
 
 .task-note-content {
@@ -1102,10 +1211,25 @@ body.is-sorting .task-card:not(.dragging) {
     gap: 0.6rem;
   }
 
+  /* Larger drag grip on mobile – ~2x, with side margins */
+  .task-card {
+    padding-right: 2.75rem;
+  }
+
   .drag-handle {
     right: 0.15rem;
-    font-size: 1.05rem;
-    padding: 0.4rem 0.3rem;
+    left: auto;
+    padding: 0.35rem 0.2rem;
+    min-width: 28px;
+    min-height: 56px;
+    margin-left: 2px;
+    margin-right: 2px;
+  }
+
+  .drag-handle .grip-dots {
+    width: 32px;
+    height: 40px;
+    background-size: 8px 8px;
   }
 
   .task-main-content {
@@ -1117,8 +1241,41 @@ body.is-sorting .task-card:not(.dragging) {
     line-height: 1.45;
   }
 
+  /* Mobile RTL: badge right, edit center, arrows far left */
   .task-priority-actions {
     margin-top: 0.15rem;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas: "badge edits moves";
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .task-priority-actions .priority-badge {
+    grid-area: badge;
+    justify-self: start;
+    flex-shrink: 0;
+  }
+
+  .task-priority-actions .task-controls-inline.task-edit-actions {
+    grid-area: edits;
+    justify-self: center;
+  }
+
+  .task-priority-actions .task-controls-inline.task-move-actions {
+    grid-area: moves;
+    justify-self: end;
+  }
+
+  .task-priority-actions .icon-action-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 0.85rem;
+  }
+
+  /* Hide duplicate footer controls on mobile */
+  .task-actions .task-controls-footer {
+    display: none !important;
   }
 
   .task-meta {
@@ -1131,8 +1288,8 @@ body.is-sorting .task-card:not(.dragging) {
     width: 100%;
     justify-content: stretch;
     margin-top: 0;
-    border-top: 1px solid var(--border-color);
-    padding-top: 0.75rem;
+    border-top: none;
+    padding-top: 0.5rem;
   }
 
   .status-btn-group {
