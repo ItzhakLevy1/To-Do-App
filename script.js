@@ -277,7 +277,7 @@ async function handleSaveEditedProject(e) {
     await saveTaskToFirestore(task);
   }
 
-  // Save new project doc, delete old one
+  // Firestore - Save new project doc, delete old one
   await saveProjectToFirestore(newName);
   await deleteProjectFromFirestore(oldName);
 
@@ -440,6 +440,9 @@ function renderTasks() {
                 <div class="task-priority-actions task-priority-actions--mobile">
                     <span class="priority-badge priority-${task.priority}">${priorityLabels[task.priority]}</span>
                     <div class="task-edit-actions task-controls-inline">
+                        <button type="button" class="icon-action-btn" onclick="pinTaskToTop('${task.id}')" title="מקם בראש הרשימה">
+                            <i class="fa-solid fa-thumbtack"></i>
+                        </button>
                         <button type="button" class="icon-action-btn" onclick="openEditTaskModal('${task.id}')" title="ערוך משימה">
                             <i class="fa-solid fa-pen"></i>
                         </button>
@@ -473,6 +476,7 @@ function renderTasks() {
                      <button type="button" class="icon-action-btn move-btn" onclick="moveTask('${task.id}', 'down')" title="הזז למטה"><i class="fa-solid fa-arrow-down"></i></button>
                  </div>
                  <div class="task-edit-actions task-controls-footer">
+                     <button type="button" class="icon-action-btn" onclick="pinTaskToTop('${task.id}')" title="מקם בראש הרשימה"><i class="fa-solid fa-thumbtack"></i></button>
                      <button type="button" class="icon-action-btn" onclick="openEditTaskModal('${task.id}')" title="ערוך משימה"><i class="fa-solid fa-pen"></i></button>
                      <button type="button" class="icon-action-btn delete-btn" onclick="deleteTask('${task.id}')" title="מחק משימה"><i class="fa-solid fa-trash-can"></i></button>
                  </div>
@@ -515,7 +519,7 @@ function toggleClamp(btn) {
 }
 
 /* ==========================================================================
-   Pointer-based Sort (desktop + tablet + mobile)
+   Pointer-based Sort (Touch & Mouse Drag Drop)
    ========================================================================== */
 let sortPointerId = null;
 let sortActiveCard = null;
@@ -679,6 +683,24 @@ function onSortPointerUp(e) {
   }
 }
 
+/** Pin a specific task to the top of the list */
+async function pinTaskToTop(taskId) {
+  taskId = String(taskId);
+  const targetTask = tasks.find((t) => String(t.id) === taskId);
+  if (!targetTask) return;
+
+  const currentProjectTasks = tasks.filter((t) => t.project === activeProject);
+  const minOrder = currentProjectTasks.reduce(
+    (min, t) => Math.min(min, t.order ?? 1),
+    1,
+  );
+
+  targetTask.order = minOrder - 1;
+
+  renderTasks();
+  await saveTaskToFirestore(targetTask);
+}
+
 /** Move task one step up or down in the visible list */
 function moveTask(taskId, direction) {
   taskId = String(taskId);
@@ -710,7 +732,7 @@ function persistDomOrder() {
   const orderMap = new Map();
   orderedIds.forEach((id, i) => orderMap.set(id, i + 1));
 
-  // Tasks filtered out of the current view stay after the visible ones
+  // Handle items not currently visible in DOM (e.g. filtered)
   const hidden = tasks
     .filter((t) => t.project === activeProject && !orderMap.has(String(t.id)))
     .sort(compareTasksOrder);
@@ -974,6 +996,7 @@ window.saveNote = saveNote;
 window.deleteNote = deleteNote;
 window.toggleClamp = toggleClamp;
 window.moveTask = moveTask;
+window.pinTaskToTop = pinTaskToTop;
 window.handleSearch = handleSearch;
 window.clearSearch = clearSearch;
 window.openModal = openModal;
