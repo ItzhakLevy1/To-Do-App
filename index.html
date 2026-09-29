@@ -166,14 +166,21 @@
           </div>
         </div>
 
+        <!-- Navigation Tabs & Filtering Bar -->
         <div class="filter-search-bar">
           <div class="status-filters" id="statusFilters">
-            <button class="filter-chip active" data-status="all">הכל</button>
-            <button class="filter-chip" data-status="todo">לביצוע</button>
-            <button class="filter-chip" data-status="in-progress">
-              בטיפול
+            <button class="filter-chip active" data-status="all">
+              הכל (<span id="filterCountAll">0</span>)
             </button>
-            <button class="filter-chip" data-status="completed">הושלמו</button>
+            <button class="filter-chip" data-status="todo">
+              לביצוע (<span id="filterCountTodo">0</span>)
+            </button>
+            <button class="filter-chip" data-status="in-progress">
+              בטיפול (<span id="filterCountInProgress">0</span>)
+            </button>
+            <button class="filter-chip" data-status="completed">
+              הושלמו (<span id="filterCountCompleted">0</span>)
+            </button>
           </div>
 
           <div class="search-box">

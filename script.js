@@ -861,16 +861,31 @@ function clearSearch() {
 }
 
 function updateStats() {
-  document.getElementById("statTotal").innerText = tasks.length;
-  document.getElementById("statCompleted").innerText = tasks.filter(
-    (t) => t.status === "completed",
-  ).length;
-  document.getElementById("statInProgress").innerText = tasks.filter(
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter((t) => t.status === "completed").length;
+  const inProgressTasks = tasks.filter(
     (t) => t.status === "in-progress",
   ).length;
+  const todoTasks = tasks.filter((t) => t.status === "todo").length;
+
+  // Updating the upper statistics cards
+  document.getElementById("statTotal").innerText = totalTasks;
+  document.getElementById("statCompleted").innerText = completedTasks;
+  document.getElementById("statInProgress").innerText = inProgressTasks;
   document.getElementById("statUrgent").innerText = tasks.filter(
     (t) => t.priority === "high" && t.status !== "completed",
   ).length;
+
+  // Updating the counters on the status buttons (filters)
+  const countAllEl = document.getElementById("filterCountAll");
+  const countTodoEl = document.getElementById("filterCountTodo");
+  const countInProgressEl = document.getElementById("filterCountInProgress");
+  const countCompletedEl = document.getElementById("filterCountCompleted");
+
+  if (countAllEl) countAllEl.innerText = totalTasks;
+  if (countTodoEl) countTodoEl.innerText = todoTasks;
+  if (countInProgressEl) countInProgressEl.innerText = inProgressTasks;
+  if (countCompletedEl) countCompletedEl.innerText = completedTasks;
 }
 
 /* ==========================================================================
