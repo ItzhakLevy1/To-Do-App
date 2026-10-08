@@ -329,9 +329,9 @@ async function handleAddTask(e) {
   const dueDateInput = document.getElementById("taskDueDate");
 
   const projectTasks = tasks.filter((t) => t.project === projectInput.value);
-  const maxOrder = projectTasks.reduce(
-    (max, t) => Math.max(max, t.order ?? 0),
-    0,
+  const minOrder = projectTasks.reduce(
+    (min, t) => Math.min(min, t.order ?? 1),
+    1,
   );
 
   const newTask = {
@@ -343,7 +343,7 @@ async function handleAddTask(e) {
     status: "todo",
     createdAt: new Date().toISOString().split("T")[0],
     dueDate: dueDateInput.value || null,
-    order: maxOrder + 1,
+    order: minOrder - 1,
   };
 
   tasks.unshift(newTask);
